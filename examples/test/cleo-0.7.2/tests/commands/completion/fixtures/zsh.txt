@@ -1,0 +1,55 @@
+#compdef script
+
+_my_function()
+{
+    local state com cur
+
+    cur=${words[${#words[@]}]}
+
+    # lookup for command
+    for word in ${words[@]:1}; do
+        if [[ $word != -* ]]; then
+            com=$word
+            break
+        fi
+    done
+
+    if [[ ${cur} == --* ]]; then
+        state="option"
+        opts=("--ansi:Force ANSI output" "--help:Display this help message" "--no-ansi:Disable ANSI output" "--no-interaction:Do not ask any interactive question" "--quiet:Do not output any message" "--verbose:Increase the verbosity of messages: \\\"-v\\\" for normal output, \\\"-vv\\\" for more verbose output and \\\"-vvv\\\" for debug" "--version:Display this application version")
+    elif [[ $cur == $com ]]; then
+        state="command"
+        coms=("command\:with\:colons:Test." "hello:Complete me please." "help:Display the manual of a command")
+    fi
+
+    case $state in
+        (command)
+            _describe 'command' coms
+        ;;
+        (option)
+            case "$com" in
+
+            (command:with:colons)
+            opts+=("--goodbye")
+            ;;
+
+            (hello)
+            opts+=("--dangerous-option:This \$hould be \`escaped\`." "--option-without-description")
+            ;;
+
+            (help)
+            opts+=()
+            ;;
+
+            esac
+
+            _describe 'option' opts
+        ;;
+        *)
+            # fallback to file completion
+            _arguments '*:file:_files'
+    esac
+}
+
+_my_function "$@"
+compdef _my_function /path/to/my/script

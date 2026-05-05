@@ -1,0 +1,99 @@
+# =========================
+# Python cache / bytecode
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# C extensions / compiled libs
+# =========================
+*.so
+*.dll
+*.dylib
+*.pyd
+
+# =========================
+# Virtual environments
+# =========================
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# Packaging / build
+# =========================
+build/
+dist/
+site/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# =========================
+# Test / coverage / pytest
+# =========================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# =========================
+# Type check / lint cache
+# =========================
+.mypy_cache/
+.pyre/
+.ruff_cache/
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# IDE / editor
+# =========================
+.vscode/
+.idea/
+*.code-workspace
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Logs / temp files
+# =========================
+*.log
+*.tmp
+*.temp
+
+# =========================
+# Archives
+# =========================
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+# =========================
+# Project-specific runtime outputs
+# =========================
+cache/
+
+# Optional: if you later create result/output dirs
+output/
+outputs/
+results/
+artifacts/
+
+# Optional: local secrets / env files
+.env
+.env.*

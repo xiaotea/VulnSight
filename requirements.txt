@@ -1,0 +1,6 @@
+# Core runtime dependencies for SEVER
+openai
+unidiff
+javalang
+clang
+setuptools

@@ -1,0 +1,1 @@
+CVE-2024-24762 affects python-multipart, a streaming multipart parser for Python. When using form data, python-multipart uses a Regular Expression to parse the HTTP Content-Type header, including options. The vulnerability was discovered in versions <=0.0.6 and has been patched in version 0.0.7 (GitHub Advisory).
