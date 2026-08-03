@@ -394,12 +394,13 @@ def list_project_files(root: str, exts=None) -> List[str]:
     """
     列出项目中的源文件 / 配置文件。
     扩展名覆盖：
-      - 代码：.c, .cpp, .h, .hpp, .py, .java, .js, .ts, .go
+      - 代码：.c, .cc, .cpp, .cxx, .h, .hh, .hpp, .hxx, .py, .java, .js, .ts, .go
       - 配置/依赖：.toml, .xml, .yml, .yaml, .ini, .properties, .txt
     """
     if exts is None:
         exts = [
-            ".c", ".cpp", ".h", ".hpp",
+            ".c", ".cc", ".cpp", ".cxx",
+            ".h", ".hh", ".hpp", ".hxx",
             ".py", ".java", ".js", ".ts", ".go",
             ".toml", ".xml", ".yml", ".yaml",
             ".ini", ".properties", ".txt",
@@ -866,7 +867,12 @@ def expand_context_via_callgraph(
     start_nodes: Set[str] = set()
     for nid, b in node_to_block.items():
         for tb in blocks:
-            if tb.file_path == b.file_path:
+            same_file = (
+                os.path.normcase(os.path.abspath(tb.file_path))
+                == os.path.normcase(os.path.abspath(b.file_path))
+            )
+            overlaps = not (tb.end_line < b.start_line or b.end_line < tb.start_line)
+            if same_file and overlaps:
                 start_nodes.add(nid)
                 break
 
@@ -874,11 +880,11 @@ def expand_context_via_callgraph(
         return blocks
 
     neighbors = set()
-    for e in graph.edges:
-        if e.src in start_nodes and e.dst in node_to_block:
-            neighbors.add(e.dst)
-        if e.dst in start_nodes and e.src in node_to_block:
-            neighbors.add(e.src)
+    for src, dst in graph.edges:
+        if src in start_nodes and dst in node_to_block:
+            neighbors.add(dst)
+        if dst in start_nodes and src in node_to_block:
+            neighbors.add(src)
 
     ctx_blocks = [node_to_block[nid] for nid in neighbors if nid in node_to_block]
     return ctx_blocks
@@ -980,8 +986,35 @@ def build_candidate_space(
     vuln: VulnKnowledge | None = None,
     language_hint: str = "",
 ):
-    # 1) 全项目块
-    Bt = build_blocks_for_project(target_root)
+    # 1) 全项目块。C/C++ 优先使用 Clang 的函数级块，解析失败的文件保留整文件兜底。
+    lang = (language_hint or "").lower()
+    builder = get_callgraph_builder(language_hint)
+    Gt: CallGraph | None = None
+    node_to_block: Dict[str, CodeBlock] = {}
+    fallback_blocks = build_blocks_for_project(target_root)
+
+    if lang in ("c", "cpp", "c++"):
+        Gt = builder.build(target_root, language_hint)
+        try:
+            node_to_block = builder.get_node_to_block() or {}
+        except Exception:
+            node_to_block = {}
+
+        clang_blocks = list(node_to_block.values())
+        if clang_blocks:
+            parsed_files = {
+                os.path.normcase(os.path.abspath(block.file_path))
+                for block in clang_blocks
+            }
+            Bt = clang_blocks + [
+                block
+                for block in fallback_blocks
+                if os.path.normcase(os.path.abspath(block.file_path)) not in parsed_files
+            ]
+        else:
+            Bt = fallback_blocks
+    else:
+        Bt = fallback_blocks
 
     # 按文件分组，后面传给 llm_expand_target
     file_blocks_index = group_blocks_by_file(Bt)
@@ -1024,10 +1057,8 @@ def build_candidate_space(
     )
 
     # 4) 调用图 + 一跳上下文
-    builder = get_callgraph_builder(language_hint)
-    Gt = builder.build(target_root, language_hint)
-    node_to_block: Dict[str, CodeBlock] = {}
-    if hasattr(builder, "get_node_to_block"):
+    if Gt is None:
+        Gt = builder.build(target_root, language_hint)
         try:
             node_to_block = builder.get_node_to_block() or {}
         except Exception:

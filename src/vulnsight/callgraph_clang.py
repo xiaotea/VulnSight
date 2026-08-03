@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import warnings
 from typing import List, Dict, Set, Tuple, Optional
 from .types import CallGraph, CodeBlock
 from .callgraph_builder import CallGraphBuilder
@@ -17,21 +18,37 @@ class ClangCallGraphBuilder(CallGraphBuilder):
     """使用 libclang 构建 C/C++ 调用图."""
 
     def __init__(self, compile_args: Optional[List[str]] = None) -> None:
-        self.compile_args = compile_args or ["-std=c++17"]
+        self.compile_args = compile_args
+        self._language_hint = ""
         self._blocks: List[CodeBlock] = []
         self._node_to_block: Dict[str, CodeBlock] = {}
 
     def build(self, project_root: str, language_hint: str = "") -> CallGraph:
+        self._blocks = []
+        self._node_to_block = {}
+        self._language_hint = (language_hint or "").lower()
+
         if ci is None:
-            # 未安装 clang 时返回空图
+            warnings.warn(
+                "clang Python bindings are unavailable; returning an empty C/C++ call graph.",
+                RuntimeWarning,
+            )
             return CallGraph(nodes=[], edges=[])
 
-        index = ci.Index.create()
+        try:
+            index = ci.Index.create()
+        except Exception as exc:
+            warnings.warn(
+                f"libclang could not be initialized; returning an empty C/C++ call graph: {exc}",
+                RuntimeWarning,
+            )
+            return CallGraph(nodes=[], edges=[])
 
         c_files: List[str] = []
         for r, _, files in os.walk(project_root):
             for f in files:
-                if f.endswith((".c", ".cc", ".cpp", ".cxx", ".h", ".hpp")):
+                suffix = os.path.splitext(f)[1].lower()
+                if suffix in (".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx"):
                     c_files.append(os.path.join(r, f))
 
         nodes: Set[str] = set()
@@ -39,9 +56,29 @@ class ClangCallGraphBuilder(CallGraphBuilder):
 
         for path in c_files:
             try:
-                tu = index.parse(path, args=self.compile_args)
-            except Exception:
+                compile_args = self._compile_args_for_file(
+                    path,
+                    project_root,
+                    language_hint,
+                )
+                tu = index.parse(os.path.abspath(path), args=compile_args)
+            except Exception as exc:
+                warnings.warn(
+                    f"libclang failed to parse {path}: {exc}",
+                    RuntimeWarning,
+                )
                 continue
+
+            errors = [
+                str(diagnostic)
+                for diagnostic in tu.diagnostics
+                if diagnostic.severity >= ci.Diagnostic.Error
+            ]
+            if errors:
+                warnings.warn(
+                    f"libclang parsed {path} with errors: {'; '.join(errors)}",
+                    RuntimeWarning,
+                )
             self._visit_translation_unit(tu, path, nodes, edges)
 
         return CallGraph(nodes=list(nodes), edges=edges)
@@ -53,7 +90,34 @@ class ClangCallGraphBuilder(CallGraphBuilder):
         return self._node_to_block
 
     # internal helpers
+    def _compile_args_for_file(
+        self,
+        file_path: str,
+        project_root: str,
+        language_hint: str,
+    ) -> List[str]:
+        if self.compile_args is not None:
+            return list(self.compile_args)
+
+        suffix = os.path.splitext(file_path)[1].lower()
+        lang = (language_hint or "").lower()
+        is_c = suffix == ".c" or (suffix == ".h" and lang in ("c",))
+        if is_c:
+            args = ["-x", "c", "-std=c11"]
+        else:
+            args = ["-x", "c++", "-std=c++17"]
+        args.append(f"-I{os.path.abspath(project_root)}")
+        return args
+
+    def _language_for_file(self, file_path: str) -> str:
+        suffix = os.path.splitext(file_path)[1].lower()
+        is_c = suffix == ".c" or (suffix == ".h" and self._language_hint in ("c",))
+        return "c" if is_c else "c++"
+
     def _func_node_id(self, file_path: str, cursor: Cursor) -> str:
+        usr = cursor.get_usr()
+        if usr:
+            return usr
         abs_path = os.path.abspath(file_path)
         return f"{abs_path}:{cursor.spelling}"
 
@@ -74,7 +138,7 @@ class ClangCallGraphBuilder(CallGraphBuilder):
             start_line=start_line,
             end_line=end_line,
             content=content,
-            language="c++",
+            language=self._language_for_file(file_path),
             metadata={"kind": str(cursor.kind), "func_name": cursor.spelling},
         )
 
@@ -114,7 +178,7 @@ class ClangCallGraphBuilder(CallGraphBuilder):
             return
 
         new_current = current_func_id
-        if self._is_func_like(cursor):
+        if self._is_func_like(cursor) and cursor.is_definition():
             block = self._make_func_block(file_path, cursor)
             node_id = block.id
             nodes.add(node_id)
@@ -123,11 +187,15 @@ class ClangCallGraphBuilder(CallGraphBuilder):
             new_current = node_id
 
         if new_current is not None and CursorKind is not None and cursor.kind == CursorKind.CALL_EXPR:
-            callee_name = cursor.displayname or cursor.spelling
-            if callee_name:
-                callee_id = f"{os.path.abspath(file_path)}:{callee_name}"
+            referenced = cursor.referenced
+            if referenced is not None:
+                referenced_file = referenced.location.file
+                callee_file = referenced_file.name if referenced_file is not None else file_path
+                callee_id = self._func_node_id(callee_file, referenced)
                 nodes.add(callee_id)
-                edges.append((new_current, callee_id))
+                edge = (new_current, callee_id)
+                if edge not in edges:
+                    edges.append(edge)
 
         for child in cursor.get_children():
             self._visit_cursor(child, file_path, nodes, edges, new_current)

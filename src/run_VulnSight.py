@@ -1,5 +1,5 @@
 import argparse
-from vulnsight.vulnsight import VulnSight
+from vulnsight.sever import VulnSight
 from vulnsight.types import VulnKnowledge
 
 
