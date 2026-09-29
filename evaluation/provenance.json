@@ -1,0 +1,34 @@
+{
+  "sources": [
+    {
+      "source_file": "data/python_vuln_dataset_184.csv",
+      "source_sha256": "1eb6772fef416149d9e7314251646c6bb05b4d56642b8d35a119692e6d7f4a3a"
+    },
+    {
+      "source_file": "data/python_vuln_dataset_184_versions.csv",
+      "source_sha256": "a55661c68a4b4ab1a71b8a3c4224c15d677a8b488591c7efb002feaa8cc7612c"
+    },
+    {
+      "source_file": "dataset/python_vuln_dataset_184_versions_three_audits.csv",
+      "source_sha256": "2f4e6d061e7c290239cf5f7fcfbafc9512df7bea14c7c5bc685f96f787e22693"
+    },
+    {
+      "source_file": "VS_VISION/download_success.json",
+      "source_sha256": "4a1de195ca45ee0ba0077e8a1079309fcb6ec18bb5d76003c5099d50d011c6f8"
+    },
+    {
+      "source_file": "VS_VISION/trueresult.json",
+      "source_sha256": "9b7fd57d5c92ec6e7b9e5f4481eb07fc39e4ca5d6c21c97786e1a79006d23673"
+    },
+    {
+      "source_file": "VS_VISION/sortresults_original.json",
+      "source_sha256": "30ba106d121edbba87fea58cc2f5efced50d52e44f830449c2d3afdedcae15ee"
+    }
+  ],
+  "parser": {
+    "source_file": "evaluation/response_parser.py",
+    "source_sha256": "dfc19e0bb9214ac37b44a54e1ae6911c478ad58c5a8416c72cba4c400bdba827"
+  },
+  "raw_output_files": 69015,
+  "archive_status": "Prepared locally; not published"
+}

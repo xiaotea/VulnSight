@@ -1,0 +1,27 @@
+[1] per-run macro accuracy
+    run1: 92.992800%   (evaluated 4032/4032)
+    run2: 92.130488%   (evaluated 4032/4032)
+    run3: 92.192310%   (evaluated 4032/4032)
+
+[2] accuracy deviation
+    mean    = 92.438532%
+    stdev   = 0.481004%
+    min     = 92.130488%
+    max     = 92.992800%
+    max-min = 0.862312%
+
+[3] complete agreement rate (all 3 runs identical)
+    all-YES  = 1592
+    all-NO   = 2243
+    2YES/1NO = 96
+    1YES/2NO = 101
+    complete agreement rate = 95.114087%  (3835/4032)
+
+[4] Fleiss' kappa (3 raters, 2 categories: YES/NO)
+    P-bar = 0.967427   P-e = 0.513101
+    Fleiss' kappa = 0.933102
+
+[5] pairwise verdict agreement
+    run1 vs run2: 3904/4032 = 96.825397%
+    run1 vs run3: 3902/4032 = 96.775794%
+    run2 vs run3: 3896/4032 = 96.626984%
